@@ -1,17 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { once } from 'node:events';
-import { server } from '../src/server.js';
+import { closeServer, startServer } from '../src/server.js';
 
+let server;
 let port = 0;
 
-test('health endpoint returns ok', async () => {
+test.before(async () => {
+  server = startServer(0);
+  await new Promise((resolve, reject) => {
+    server.once('listening', resolve);
+    server.once('error', reject);
+  });
   const address = server.address();
   if (!address || typeof address === 'string') {
     throw new Error('Server not listening');
   }
   port = address.port;
+});
 
+test.after(async () => {
+  await closeServer();
+});
+
+test('health endpoint returns ok', async () => {
   const response = await fetch(`http://127.0.0.1:${port}/health`);
   const body = await response.json();
   assert.equal(response.status, 200);
@@ -48,5 +59,3 @@ test('activity and alert endpoints persist data', async () => {
   });
   assert.equal(alertResponse.status, 201);
 });
-
-await once(server, 'close');

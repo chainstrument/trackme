@@ -1,6 +1,15 @@
 import http from 'node:http';
+import { pathToFileURL } from 'node:url';
+import {
+  createMeal,
+  deleteMeal,
+  listMeals,
+  listPlannedMeals,
+  planMeal,
+  toggleEaten,
+  updateMeal
+} from './mealStore.js';
 
-const meals = [];
 const activities = [];
 const alerts = [];
 
@@ -13,7 +22,7 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/api/meals' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(meals));
+    res.end(JSON.stringify(listMeals()));
     return;
   }
 
@@ -24,11 +33,76 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       const payload = JSON.parse(body || '{}');
-      const meal = { id: `${Date.now()}`, ...payload };
-      meals.push(meal);
+      const meal = createMeal(payload);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(meal));
     });
+    return;
+  }
+
+  if (req.url.startsWith('/api/meals/') && req.method === 'PATCH') {
+    const id = req.url.split('/').pop();
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      const payload = JSON.parse(body || '{}');
+      const meal = updateMeal(id, payload);
+      if (!meal) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Meal not found' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(meal));
+    });
+    return;
+  }
+
+  if (req.url.startsWith('/api/meals/') && req.method === 'DELETE') {
+    const id = req.url.split('/').pop();
+    const deleted = deleteMeal(id);
+    if (!deleted) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Meal not found' }));
+      return;
+    }
+    res.writeHead(204, { 'Content-Type': 'application/json' });
+    res.end();
+    return;
+  }
+
+  if (req.url === '/api/planned-meals' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(listPlannedMeals()));
+    return;
+  }
+
+  if (req.url === '/api/planned-meals' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      const payload = JSON.parse(body || '{}');
+      const plannedMeal = planMeal(payload);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(plannedMeal));
+    });
+    return;
+  }
+
+  if (req.url.startsWith('/api/planned-meals/') && req.method === 'PATCH') {
+    const id = req.url.split('/').pop();
+    const plannedMeal = toggleEaten(id);
+    if (!plannedMeal) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Planned meal not found' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(plannedMeal));
     return;
   }
 
@@ -78,9 +152,33 @@ const server = http.createServer((req, res) => {
   res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
-});
+function startServer(port = process.env.PORT || 3001) {
+  if (server.listening) {
+    return server;
+  }
+  server.listen(port, () => {
+    console.log(`Backend listening on port ${port}`);
+  });
+  return server;
+}
 
-export { server };
+function closeServer() {
+  if (!server.listening) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startServer();
+}
+
+export { closeServer, server, startServer };

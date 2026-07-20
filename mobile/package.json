@@ -1,0 +1,8 @@
+{
+  "name": "trackme-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "echo 'React Native scaffold placeholder'"
+  }
+}

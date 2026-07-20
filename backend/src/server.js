@@ -10,8 +10,13 @@ import {
   updateMeal
 } from './mealStore.js';
 import { createActivity, listActivities } from './activityStore.js';
-
-const alerts = [];
+import {
+  createAlertRule,
+  listAlertHistory,
+  listAlertRules,
+  triggerAlerts,
+  updateAlertRule
+} from './alertStore.js';
 
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {
@@ -128,7 +133,7 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/api/alerts' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(alerts));
+    res.end(JSON.stringify(listAlertRules()));
     return;
   }
 
@@ -139,11 +144,43 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       const payload = JSON.parse(body || '{}');
-      const alert = { id: `${Date.now()}`, ...payload };
-      alerts.push(alert);
+      const alert = createAlertRule(payload);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(alert));
     });
+    return;
+  }
+
+  if (req.url.startsWith('/api/alerts/') && req.method === 'PATCH') {
+    const id = req.url.split('/').pop();
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      const payload = JSON.parse(body || '{}');
+      const updated = updateAlertRule(id, payload);
+      if (!updated) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Alert rule not found' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(updated));
+    });
+    return;
+  }
+
+  if (req.url === '/api/alert-history' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(listAlertHistory()));
+    return;
+  }
+
+  if (req.url === '/api/trigger-alerts' && req.method === 'POST') {
+    const triggered = triggerAlerts();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(triggered));
     return;
   }
 

@@ -9,8 +9,8 @@ import {
   toggleEaten,
   updateMeal
 } from './mealStore.js';
+import { createActivity, listActivities } from './activityStore.js';
 
-const activities = [];
 const alerts = [];
 
 const server = http.createServer((req, res) => {
@@ -108,7 +108,7 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/api/activities' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(activities));
+    res.end(JSON.stringify(listActivities()));
     return;
   }
 
@@ -119,8 +119,7 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       const payload = JSON.parse(body || '{}');
-      const activity = { id: `${Date.now()}`, ...payload };
-      activities.push(activity);
+      const activity = createActivity(payload);
       res.writeHead(201, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(activity));
     });

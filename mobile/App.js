@@ -8,6 +8,7 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [activities, setActivities] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [activityForm, setActivityForm] = useState({ type: 'walk', duration: 30, intensity: 'moderate', date: '2026-07-20' });
 
   const loadData = async () => {
     const [mealsRes, plannedRes, activitiesRes, alertsRes] = await Promise.all([
@@ -27,6 +28,8 @@ export default function App() {
   }, []);
 
   const filteredMeals = meals.filter((meal) => meal.name.toLowerCase().includes(search.toLowerCase()));
+  const todayActivities = activities.filter((activity) => activity.date === activityForm.date);
+  const todayMinutes = todayActivities.reduce((sum, activity) => sum + Number(activity.duration || 0), 0);
 
   const addMeal = async () => {
     const name = window.prompt('Nom du plat');
@@ -59,10 +62,22 @@ export default function App() {
     }
   };
 
+  const saveActivity = async (event) => {
+    event.preventDefault();
+    const response = await fetch(`${API_URL}/api/activities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(activityForm)
+    });
+    if (response.ok) {
+      loadData();
+    }
+  };
+
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 760, margin: '0 auto' }}>
       <h1>TrackMe</h1>
-      <p>Module repas — planning et bibliothèque</p>
+      <p>Module activité — saisie manuelle et synthèse</p>
       <button onClick={addMeal} style={{ marginTop: 12 }}>Ajouter un plat</button>
       <section style={{ marginTop: 24 }}>
         <h2>Bibliothèque</h2>
@@ -86,8 +101,26 @@ export default function App() {
         )) : <p>Aucun repas prévu.</p>}
       </section>
       <section style={{ marginTop: 24 }}>
-        <h2>Activités</h2>
-        {activities.length ? activities.map((activity) => <p key={activity.id}>{activity.type} — {activity.duration} min</p>) : <p>Aucune activité enregistrée.</p>}
+        <h2>Activité du jour</h2>
+        <p>Temps total : {todayMinutes} min</p>
+        <form onSubmit={saveActivity}>
+          <select value={activityForm.type} onChange={(event) => setActivityForm({ ...activityForm, type: event.target.value })}>
+            <option value="walk">Marche</option>
+            <option value="sport">Sport</option>
+            <option value="bike">Vélo</option>
+            <option value="other">Autre</option>
+          </select>
+          <input type="number" value={activityForm.duration} onChange={(event) => setActivityForm({ ...activityForm, duration: Number(event.target.value) })} style={{ marginLeft: 8 }} />
+          <input value={activityForm.date} onChange={(event) => setActivityForm({ ...activityForm, date: event.target.value })} style={{ marginLeft: 8 }} />
+          <button type="submit" style={{ marginLeft: 8 }}>Enregistrer</button>
+        </form>
+        <div style={{ marginTop: 12 }}>
+          {todayActivities.length ? todayActivities.map((activity) => <p key={activity.id}>{activity.type} — {activity.duration} min</p>) : <p>Aucune activité enregistrée aujourd’hui.</p>}
+        </div>
+      </section>
+      <section style={{ marginTop: 24 }}>
+        <h2>Historique</h2>
+        {activities.length ? activities.map((activity) => <p key={activity.id}>{activity.date} — {activity.type} — {activity.duration} min</p>) : <p>Aucun historique.</p>}
       </section>
       <section style={{ marginTop: 24 }}>
         <h2>Alertes</h2>

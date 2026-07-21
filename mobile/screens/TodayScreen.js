@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ActivitiesRepo from '../lib/activitiesRepository';
 import { API_URL } from '../lib/config';
 import * as MealsRepo from '../lib/mealsRepository';
 
@@ -61,19 +62,19 @@ export default function TodayScreen({ pushToken, pushError }) {
   const [alertRuleForm, setAlertRuleForm] = useState({ type: 'drink', schedule: '09:00', message: 'Il est temps d’agir' });
 
   const loadData = async () => {
-    const [localMeals, localPlannedMeals] = await Promise.all([
+    const [localMeals, localPlannedMeals, localActivities] = await Promise.all([
       MealsRepo.listMeals(),
-      MealsRepo.listPlannedMeals()
+      MealsRepo.listPlannedMeals(),
+      ActivitiesRepo.listActivities()
     ]);
     setMeals(localMeals);
     setPlannedMeals(localPlannedMeals);
+    setActivities(localActivities);
 
-    const [activitiesRes, alertsRes, historyRes] = await Promise.all([
-      fetch(`${API_URL}/api/activities`),
+    const [alertsRes, historyRes] = await Promise.all([
       fetch(`${API_URL}/api/alerts`),
       fetch(`${API_URL}/api/alert-history`)
     ]);
-    setActivities(await activitiesRes.json());
     setAlerts(await alertsRes.json());
     setAlertHistory(await historyRes.json());
   };
@@ -106,14 +107,12 @@ export default function TodayScreen({ pushToken, pushError }) {
   };
 
   const saveActivity = async () => {
-    const response = await fetch(`${API_URL}/api/activities`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...activityForm, duration: Number(activityForm.duration), date: selectedDate })
+    await ActivitiesRepo.createActivity({
+      ...activityForm,
+      duration: Number(activityForm.duration),
+      date: selectedDate
     });
-    if (response.ok) {
-      loadData();
-    }
+    loadData();
   };
 
   const changeDay = (direction) => {

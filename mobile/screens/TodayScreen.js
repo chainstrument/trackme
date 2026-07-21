@@ -48,7 +48,7 @@ function Button({ label, onPress, style }) {
   );
 }
 
-export default function TodayScreen() {
+export default function TodayScreen({ pushToken, pushError }) {
   const [meals, setMeals] = useState([]);
   const [plannedMeals, setPlannedMeals] = useState([]);
   const [search, setSearch] = useState('');
@@ -286,6 +286,15 @@ export default function TodayScreen() {
           <Text key={entry.id}>{entry.type} : {entry.message}</Text>
         )) : <Text>Aucun historique.</Text>}
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.h2}>Notifications push</Text>
+        {pushToken ? (
+          <Text style={styles.pushStatus}>Appareil enregistré : {pushToken}</Text>
+        ) : (
+          <Text style={styles.pushStatus}>{pushError || 'Enregistrement en cours…'}</Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -391,5 +400,9 @@ const styles = StyleSheet.create({
   choiceChipTextSelected: {
     color: '#fff',
     fontWeight: '600'
+  },
+  pushStatus: {
+    color: '#555',
+    fontSize: 12
   }
 });

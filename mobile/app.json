@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-scaffold",
-    "slug": "mobile-scaffold",
+    "name": "TrackMe",
+    "slug": "trackme-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,6 +19,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2563eb"
+        }
+      ]
+    ]
   }
 }

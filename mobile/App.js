@@ -16,6 +16,7 @@ export default function App() {
   const [alertHistory, setAlertHistory] = useState([]);
   const [activityForm, setActivityForm] = useState({ type: 'walk', duration: 30, intensity: 'moderate', date: '2026-07-20' });
   const [selectedDate, setSelectedDate] = useState('2026-07-20');
+  const [alertRuleForm, setAlertRuleForm] = useState({ type: 'drink', schedule: '09:00', message: 'Il est temps d’agir', active: true });
 
   const loadData = async () => {
     const [mealsRes, plannedRes, activitiesRes, alertsRes, historyRes] = await Promise.all([
@@ -91,6 +92,36 @@ export default function App() {
     setSelectedDate(currentDate.toISOString().slice(0, 10));
   };
 
+  const saveAlertRule = async (event) => {
+    event.preventDefault();
+    const response = await fetch(`${API_URL}/api/alerts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(alertRuleForm)
+    });
+    if (response.ok) {
+      loadData();
+    }
+  };
+
+  const toggleAlertActive = async (rule) => {
+    const response = await fetch(`${API_URL}/api/alerts/${rule.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !rule.active })
+    });
+    if (response.ok) {
+      loadData();
+    }
+  };
+
+  const triggerAlerts = async () => {
+    const response = await fetch(`${API_URL}/api/trigger-alerts`, { method: 'POST' });
+    if (response.ok) {
+      loadData();
+    }
+  };
+
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 760, margin: '0 auto' }}>
       <h1>TrackMe</h1>
@@ -144,6 +175,30 @@ export default function App() {
       <section style={{ marginTop: 24 }}>
         <h2>Alertes du jour</h2>
         {selectedDayAlerts.length ? selectedDayAlerts.map((alert) => <p key={alert.id}>{alert.type} — {alert.schedule} — {alert.message}</p>) : <p>Aucune alerte prévue.</p>}
+      </section>
+      <section style={{ marginTop: 24 }}>
+        <h2>Administration — Règles d’alerte</h2>
+        <form onSubmit={saveAlertRule}>
+          <select value={alertRuleForm.type} onChange={(event) => setAlertRuleForm({ ...alertRuleForm, type: event.target.value })}>
+            <option value="drink">Boire</option>
+            <option value="walk">Marcher</option>
+            <option value="move">Bouger</option>
+            <option value="snack">Collation</option>
+          </select>
+          <input value={alertRuleForm.schedule} onChange={(event) => setAlertRuleForm({ ...alertRuleForm, schedule: event.target.value })} style={{ marginLeft: 8 }} />
+          <input value={alertRuleForm.message} onChange={(event) => setAlertRuleForm({ ...alertRuleForm, message: event.target.value })} style={{ marginLeft: 8 }} />
+          <button type="submit" style={{ marginLeft: 8 }}>Créer</button>
+        </form>
+        <div style={{ marginTop: 12 }}>
+          {alerts.length ? alerts.map((alert) => (
+            <div key={alert.id} style={{ border: '1px solid #ddd', padding: 12, marginTop: 8 }}>
+              <div>{alert.type} — {alert.schedule} — {alert.message}</div>
+              <div>État : {alert.active ? 'Active' : 'Désactivée'}</div>
+              <button onClick={() => toggleAlertActive(alert)} style={{ marginTop: 8 }}>{alert.active ? 'Désactiver' : 'Activer'}</button>
+            </div>
+          )) : <p>Aucune règle d’alerte.</p>}
+        </div>
+        <button onClick={triggerAlerts} style={{ marginTop: 12 }}>Déclencher les alertes</button>
       </section>
       <section style={{ marginTop: 24 }}>
         <h2>Historique des alertes</h2>

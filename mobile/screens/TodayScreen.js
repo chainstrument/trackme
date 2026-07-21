@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { API_URL } from '../lib/config';
+import * as MealsRepo from '../lib/mealsRepository';
 
 const MEAL_CATEGORY = 'lunch';
 const ACTIVITY_TYPES = [
@@ -60,15 +61,18 @@ export default function TodayScreen({ pushToken, pushError }) {
   const [alertRuleForm, setAlertRuleForm] = useState({ type: 'drink', schedule: '09:00', message: 'Il est temps d’agir' });
 
   const loadData = async () => {
-    const [mealsRes, plannedRes, activitiesRes, alertsRes, historyRes] = await Promise.all([
-      fetch(`${API_URL}/api/meals`),
-      fetch(`${API_URL}/api/planned-meals`),
+    const [localMeals, localPlannedMeals] = await Promise.all([
+      MealsRepo.listMeals(),
+      MealsRepo.listPlannedMeals()
+    ]);
+    setMeals(localMeals);
+    setPlannedMeals(localPlannedMeals);
+
+    const [activitiesRes, alertsRes, historyRes] = await Promise.all([
       fetch(`${API_URL}/api/activities`),
       fetch(`${API_URL}/api/alerts`),
       fetch(`${API_URL}/api/alert-history`)
     ]);
-    setMeals(await mealsRes.json());
-    setPlannedMeals(await plannedRes.json());
     setActivities(await activitiesRes.json());
     setAlerts(await alertsRes.json());
     setAlertHistory(await historyRes.json());
@@ -86,33 +90,19 @@ export default function TodayScreen({ pushToken, pushError }) {
 
   const addMeal = async () => {
     if (!newMealName.trim()) return;
-    const response = await fetch(`${API_URL}/api/meals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newMealName.trim(), category: MEAL_CATEGORY })
-    });
-    if (response.ok) {
-      setNewMealName('');
-      loadData();
-    }
+    await MealsRepo.createMeal({ name: newMealName.trim(), category: MEAL_CATEGORY });
+    setNewMealName('');
+    loadData();
   };
 
   const planMeal = async (mealId) => {
-    const response = await fetch(`${API_URL}/api/planned-meals`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mealId, date: selectedDate, category: MEAL_CATEGORY })
-    });
-    if (response.ok) {
-      loadData();
-    }
+    await MealsRepo.planMeal({ mealId, date: selectedDate, category: MEAL_CATEGORY });
+    loadData();
   };
 
   const toggleEaten = async (plannedMealId) => {
-    const response = await fetch(`${API_URL}/api/planned-meals/${plannedMealId}`, { method: 'PATCH' });
-    if (response.ok) {
-      loadData();
-    }
+    await MealsRepo.toggleEaten(plannedMealId);
+    loadData();
   };
 
   const saveActivity = async () => {

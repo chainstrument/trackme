@@ -1,5 +1,7 @@
 const alertRules = [];
 const alertHistory = [];
+const lastTriggeredDate = new Map();
+let schedulerInterval = null;
 
 function listAlertRules() {
   return alertRules;
@@ -43,4 +45,55 @@ function triggerAlerts() {
   return triggered;
 }
 
-export { createAlertRule, listAlertHistory, listAlertRules, triggerAlerts, updateAlertRule };
+function currentTimeLabel(date) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function checkScheduledAlerts(now = new Date()) {
+  const timeLabel = currentTimeLabel(now);
+  const dateLabel = now.toISOString().slice(0, 10);
+  const dueRules = alertRules.filter(
+    (rule) => rule.active && rule.schedule === timeLabel && lastTriggeredDate.get(rule.id) !== dateLabel
+  );
+  const triggered = dueRules.map((rule) => {
+    lastTriggeredDate.set(rule.id, dateLabel);
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      ruleId: rule.id,
+      type: rule.type,
+      message: rule.message,
+      createdAt: new Date().toISOString()
+    };
+  });
+  alertHistory.push(...triggered);
+  return triggered;
+}
+
+function startScheduler(intervalMs = 30000) {
+  if (schedulerInterval) {
+    return schedulerInterval;
+  }
+  schedulerInterval = setInterval(() => checkScheduledAlerts(), intervalMs);
+  schedulerInterval.unref();
+  return schedulerInterval;
+}
+
+function stopScheduler() {
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+    schedulerInterval = null;
+  }
+}
+
+export {
+  checkScheduledAlerts,
+  createAlertRule,
+  listAlertHistory,
+  listAlertRules,
+  startScheduler,
+  stopScheduler,
+  triggerAlerts,
+  updateAlertRule
+};

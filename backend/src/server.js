@@ -14,6 +14,8 @@ import {
   createAlertRule,
   listAlertHistory,
   listAlertRules,
+  startScheduler,
+  stopScheduler,
   triggerAlerts,
   updateAlertRule
 } from './alertStore.js';
@@ -195,10 +197,12 @@ function startServer(port = process.env.PORT || 3001) {
   server.listen(port, () => {
     console.log(`Backend listening on port ${port}`);
   });
+  startScheduler();
   return server;
 }
 
 function closeServer() {
+  stopScheduler();
   if (!server.listening) {
     return Promise.resolve();
   }

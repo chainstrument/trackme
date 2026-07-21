@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
-import { registerForPushNotificationsAsync } from './lib/pushNotifications';
+import { registerDeviceWithBackend, registerForPushNotificationsAsync } from './lib/pushNotifications';
 import TodayScreen from './screens/TodayScreen';
 
 const Stack = createNativeStackNavigator();
@@ -16,6 +16,9 @@ export default function App() {
     registerForPushNotificationsAsync().then(({ token, error }) => {
       setPushToken(token);
       setPushError(error);
+      if (token) {
+        registerDeviceWithBackend(token);
+      }
     });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(() => {});

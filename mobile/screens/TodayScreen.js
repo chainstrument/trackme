@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-
-const API_URL = 'http://127.0.0.1:3001';
+import { API_URL } from '../lib/config';
 
 const MEAL_CATEGORY = 'lunch';
 const ACTIVITY_TYPES = [

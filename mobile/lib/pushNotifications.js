@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { API_URL } from './config';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -44,4 +45,12 @@ async function registerForPushNotificationsAsync() {
   }
 }
 
-export { registerForPushNotificationsAsync };
+async function registerDeviceWithBackend(token) {
+  await fetch(`${API_URL}/api/devices`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, platform: Platform.OS })
+  });
+}
+
+export { registerDeviceWithBackend, registerForPushNotificationsAsync };

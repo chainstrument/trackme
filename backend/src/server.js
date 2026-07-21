@@ -10,6 +10,7 @@ import {
   updateMeal
 } from './mealStore.js';
 import { createActivity, listActivities } from './activityStore.js';
+import { listDevices, registerDevice } from './deviceStore.js';
 import {
   createAlertRule,
   listAlertHistory,
@@ -176,6 +177,31 @@ const server = http.createServer((req, res) => {
   if (req.url === '/api/alert-history' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(listAlertHistory()));
+    return;
+  }
+
+  if (req.url === '/api/devices' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(listDevices()));
+    return;
+  }
+
+  if (req.url === '/api/devices' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      const payload = JSON.parse(body || '{}');
+      if (!payload.token) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'token is required' }));
+        return;
+      }
+      const device = registerDevice(payload);
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(device));
+    });
     return;
   }
 

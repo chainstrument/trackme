@@ -2,6 +2,11 @@
 
 Application Expo/React Native. Tout tourne en local sur l'appareil (base SQLite embarquée, notifications programmées par l'OS) — il n'y a plus de backend à lancer.
 
+## Architecture
+
+- **Données** : base SQLite locale (`lib/db.js`), un repository par domaine (`lib/mealsRepository.js`, `lib/activitiesRepository.js`, `lib/alertRulesRepository.js`). Rien n'est envoyé sur le réseau.
+- **Alertes** : chaque règle active a une notification programmée côté OS (`lib/localNotifications.js`) — horaire fixe (déclencheur quotidien) ou récurrence toutes les N minutes. Elles sont resynchronisées à chaque démarrage de l'app.
+
 ## Prérequis
 - Node.js 18+ et npm
 - L'app [Expo Go](https://expo.dev/go) sur un téléphone (le plus simple pour tester), ou Xcode (iOS) / Android Studio (Android) pour un simulateur/émulateur local

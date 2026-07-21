@@ -49,6 +49,7 @@ async function initDatabase() {
       trigger_type TEXT NOT NULL DEFAULT 'fixed',
       schedule TEXT,
       interval_minutes INTEGER,
+      notification_id TEXT,
       message TEXT NOT NULL,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL
@@ -64,6 +65,7 @@ async function initDatabase() {
   `);
   await ensureColumn(db, 'alert_rules', 'trigger_type', "TEXT NOT NULL DEFAULT 'fixed'");
   await ensureColumn(db, 'alert_rules', 'interval_minutes', 'INTEGER');
+  await ensureColumn(db, 'alert_rules', 'notification_id', 'TEXT');
   return db;
 }
 

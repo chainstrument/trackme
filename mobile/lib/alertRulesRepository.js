@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import { cancelNotification, fireNow, scheduleNotificationForRule } from './localNotifications';
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -21,23 +22,35 @@ async function createAlertRule({ type, message, triggerType, schedule, intervalM
     active: 1,
     created_at: new Date().toISOString()
   };
+  const notificationId = await scheduleNotificationForRule(rule);
   await db.runAsync(
-    'INSERT INTO alert_rules (id, type, trigger_type, schedule, interval_minutes, message, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO alert_rules (id, type, trigger_type, schedule, interval_minutes, notification_id, message, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     rule.id,
     rule.type,
     rule.trigger_type,
     rule.schedule,
     rule.interval_minutes,
+    notificationId,
     rule.message,
     rule.active,
     rule.created_at
   );
-  return rule;
+  return { ...rule, notification_id: notificationId };
 }
 
 async function setAlertRuleActive(id, active) {
   const db = await getDatabase();
-  await db.runAsync('UPDATE alert_rules SET active = ? WHERE id = ?', active ? 1 : 0, id);
+  const rule = await db.getFirstAsync('SELECT * FROM alert_rules WHERE id = ?', id);
+  if (!rule) {
+    return null;
+  }
+  if (active) {
+    const notificationId = await scheduleNotificationForRule(rule);
+    await db.runAsync('UPDATE alert_rules SET active = 1, notification_id = ? WHERE id = ?', notificationId, id);
+  } else {
+    await cancelNotification(rule.notification_id);
+    await db.runAsync('UPDATE alert_rules SET active = 0, notification_id = NULL WHERE id = ?', id);
+  }
   return db.getFirstAsync('SELECT * FROM alert_rules WHERE id = ?', id);
 }
 
@@ -51,6 +64,7 @@ async function triggerAlertsNow() {
   const activeRules = await db.getAllAsync('SELECT * FROM alert_rules WHERE active = 1');
   const triggered = [];
   for (const rule of activeRules) {
+    await fireNow(rule.message);
     const entry = {
       id: generateId(),
       rule_id: rule.id,

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ActivitiesRepo from '../lib/activitiesRepository';
-import { API_URL } from '../lib/config';
+import * as AlertRulesRepo from '../lib/alertRulesRepository';
 import * as MealsRepo from '../lib/mealsRepository';
 
 const MEAL_CATEGORY = 'lunch';
@@ -17,6 +17,20 @@ const ALERT_TYPES = [
   { value: 'move', label: 'Bouger' },
   { value: 'snack', label: 'Collation' }
 ];
+const TRIGGER_TYPES = [
+  { value: 'fixed', label: 'Horaire fixe' },
+  { value: 'interval', label: 'Récurrence' }
+];
+const INTERVAL_PRESETS = [
+  { value: '30', label: '30 min' },
+  { value: '60', label: '1 h' },
+  { value: '120', label: '2 h' },
+  { value: '240', label: '4 h' }
+];
+
+function describeSchedule(alert) {
+  return alert.trigger_type === 'interval' ? `toutes les ${alert.interval_minutes} min` : alert.schedule;
+}
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -59,24 +73,27 @@ export default function TodayScreen({ pushToken, pushError }) {
   const [alertHistory, setAlertHistory] = useState([]);
   const [activityForm, setActivityForm] = useState({ type: 'walk', duration: '30', intensity: 'moderate' });
   const [selectedDate, setSelectedDate] = useState('2026-07-20');
-  const [alertRuleForm, setAlertRuleForm] = useState({ type: 'drink', schedule: '09:00', message: 'Il est temps d’agir' });
+  const [alertRuleForm, setAlertRuleForm] = useState({
+    type: 'drink',
+    triggerType: 'fixed',
+    schedule: '09:00',
+    intervalMinutes: '60',
+    message: 'Il est temps d’agir'
+  });
 
   const loadData = async () => {
-    const [localMeals, localPlannedMeals, localActivities] = await Promise.all([
+    const [localMeals, localPlannedMeals, localActivities, localAlerts, localAlertHistory] = await Promise.all([
       MealsRepo.listMeals(),
       MealsRepo.listPlannedMeals(),
-      ActivitiesRepo.listActivities()
+      ActivitiesRepo.listActivities(),
+      AlertRulesRepo.listAlertRules(),
+      AlertRulesRepo.listAlertHistory()
     ]);
     setMeals(localMeals);
     setPlannedMeals(localPlannedMeals);
     setActivities(localActivities);
-
-    const [alertsRes, historyRes] = await Promise.all([
-      fetch(`${API_URL}/api/alerts`),
-      fetch(`${API_URL}/api/alert-history`)
-    ]);
-    setAlerts(await alertsRes.json());
-    setAlertHistory(await historyRes.json());
+    setAlerts(localAlerts);
+    setAlertHistory(localAlertHistory);
   };
 
   useEffect(() => {
@@ -87,7 +104,7 @@ export default function TodayScreen({ pushToken, pushError }) {
   const selectedDayPlannedMeals = plannedMeals.filter((plannedMeal) => plannedMeal.date === selectedDate);
   const selectedDayActivities = activities.filter((activity) => activity.date === selectedDate);
   const selectedDayMinutes = selectedDayActivities.reduce((sum, activity) => sum + Number(activity.duration || 0), 0);
-  const selectedDayAlerts = alerts.filter((alert) => alert.schedule);
+  const selectedDayAlerts = alerts.filter((alert) => alert.active);
 
   const addMeal = async () => {
     if (!newMealName.trim()) return;
@@ -122,32 +139,24 @@ export default function TodayScreen({ pushToken, pushError }) {
   };
 
   const saveAlertRule = async () => {
-    const response = await fetch(`${API_URL}/api/alerts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(alertRuleForm)
+    await AlertRulesRepo.createAlertRule({
+      type: alertRuleForm.type,
+      message: alertRuleForm.message,
+      triggerType: alertRuleForm.triggerType,
+      schedule: alertRuleForm.schedule,
+      intervalMinutes: Number(alertRuleForm.intervalMinutes)
     });
-    if (response.ok) {
-      loadData();
-    }
+    loadData();
   };
 
   const toggleAlertActive = async (rule) => {
-    const response = await fetch(`${API_URL}/api/alerts/${rule.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !rule.active })
-    });
-    if (response.ok) {
-      loadData();
-    }
+    await AlertRulesRepo.setAlertRuleActive(rule.id, !rule.active);
+    loadData();
   };
 
   const triggerAlerts = async () => {
-    const response = await fetch(`${API_URL}/api/trigger-alerts`, { method: 'POST' });
-    if (response.ok) {
-      loadData();
-    }
+    await AlertRulesRepo.triggerAlertsNow();
+    loadData();
   };
 
   return (
@@ -228,7 +237,7 @@ export default function TodayScreen({ pushToken, pushError }) {
       <View style={styles.section}>
         <Text style={styles.h2}>Alertes du jour</Text>
         {selectedDayAlerts.length ? selectedDayAlerts.map((alert) => (
-          <Text key={alert.id}>{alert.type} — {alert.schedule} — {alert.message}</Text>
+          <Text key={alert.id}>{alert.type} — {describeSchedule(alert)} — {alert.message}</Text>
         )) : <Text>Aucune alerte prévue.</Text>}
       </View>
 
@@ -239,12 +248,34 @@ export default function TodayScreen({ pushToken, pushError }) {
           value={alertRuleForm.type}
           onChange={(type) => setAlertRuleForm({ ...alertRuleForm, type })}
         />
-        <TextInput
-          value={alertRuleForm.schedule}
-          onChangeText={(schedule) => setAlertRuleForm({ ...alertRuleForm, schedule })}
-          placeholder="Horaire (HH:mm)"
-          style={styles.input}
+        <ChoiceRow
+          options={TRIGGER_TYPES}
+          value={alertRuleForm.triggerType}
+          onChange={(triggerType) => setAlertRuleForm({ ...alertRuleForm, triggerType })}
         />
+        {alertRuleForm.triggerType === 'fixed' ? (
+          <TextInput
+            value={alertRuleForm.schedule}
+            onChangeText={(schedule) => setAlertRuleForm({ ...alertRuleForm, schedule })}
+            placeholder="Horaire (HH:mm)"
+            style={styles.input}
+          />
+        ) : (
+          <>
+            <ChoiceRow
+              options={INTERVAL_PRESETS}
+              value={alertRuleForm.intervalMinutes}
+              onChange={(intervalMinutes) => setAlertRuleForm({ ...alertRuleForm, intervalMinutes })}
+            />
+            <TextInput
+              value={alertRuleForm.intervalMinutes}
+              onChangeText={(intervalMinutes) => setAlertRuleForm({ ...alertRuleForm, intervalMinutes })}
+              keyboardType="numeric"
+              placeholder="Intervalle (minutes)"
+              style={styles.input}
+            />
+          </>
+        )}
         <TextInput
           value={alertRuleForm.message}
           onChangeText={(message) => setAlertRuleForm({ ...alertRuleForm, message })}
@@ -255,7 +286,7 @@ export default function TodayScreen({ pushToken, pushError }) {
         <View style={{ marginTop: 12 }}>
           {alerts.length ? alerts.map((alert) => (
             <View key={alert.id} style={styles.card}>
-              <Text>{alert.type} — {alert.schedule} — {alert.message}</Text>
+              <Text>{alert.type} — {describeSchedule(alert)} — {alert.message}</Text>
               <Text>État : {alert.active ? 'Active' : 'Désactivée'}</Text>
               <Button
                 label={alert.active ? 'Désactiver' : 'Activer'}

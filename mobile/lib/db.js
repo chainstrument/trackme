@@ -46,7 +46,9 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS alert_rules (
       id TEXT PRIMARY KEY NOT NULL,
       type TEXT NOT NULL,
-      schedule TEXT NOT NULL,
+      trigger_type TEXT NOT NULL DEFAULT 'fixed',
+      schedule TEXT,
+      interval_minutes INTEGER,
       message TEXT NOT NULL,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL
@@ -60,7 +62,17 @@ async function initDatabase() {
       created_at TEXT NOT NULL
     );
   `);
+  await ensureColumn(db, 'alert_rules', 'trigger_type', "TEXT NOT NULL DEFAULT 'fixed'");
+  await ensureColumn(db, 'alert_rules', 'interval_minutes', 'INTEGER');
   return db;
+}
+
+async function ensureColumn(db, table, column, definition) {
+  const columns = await db.getAllAsync(`PRAGMA table_info(${table})`);
+  const exists = columns.some((col) => col.name === column);
+  if (!exists) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
 
 export { getDatabase, initDatabase };

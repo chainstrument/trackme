@@ -63,7 +63,7 @@ function Button({ label, onPress, style }) {
   );
 }
 
-export default function TodayScreen({ pushToken, pushError }) {
+export default function TodayScreen({ notificationsGranted }) {
   const [meals, setMeals] = useState([]);
   const [plannedMeals, setPlannedMeals] = useState([]);
   const [search, setSearch] = useState('');
@@ -307,12 +307,12 @@ export default function TodayScreen({ pushToken, pushError }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.h2}>Notifications push</Text>
-        {pushToken ? (
-          <Text style={styles.pushStatus}>Appareil enregistré : {pushToken}</Text>
-        ) : (
-          <Text style={styles.pushStatus}>{pushError || 'Enregistrement en cours…'}</Text>
-        )}
+        <Text style={styles.h2}>Notifications</Text>
+        <Text style={styles.pushStatus}>
+          {notificationsGranted === null && 'Vérification de la permission…'}
+          {notificationsGranted === true && 'Autorisées — les alertes se déclencheront sur cet appareil.'}
+          {notificationsGranted === false && 'Refusées — active les notifications dans les réglages du téléphone pour recevoir les alertes.'}
+        </Text>
       </View>
     </ScrollView>
   );

@@ -4,30 +4,22 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { listAlertRules } from './lib/alertRulesRepository';
 import { initDatabase } from './lib/db';
-import { syncScheduledNotifications } from './lib/localNotifications';
-import { registerDeviceWithBackend, registerForPushNotificationsAsync } from './lib/pushNotifications';
+import { ensureNotificationPermission, syncScheduledNotifications } from './lib/localNotifications';
 import TodayScreen from './screens/TodayScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [pushToken, setPushToken] = useState(null);
-  const [pushError, setPushError] = useState(null);
+  const [notificationsGranted, setNotificationsGranted] = useState(null);
   const notificationListener = useRef();
 
   useEffect(() => {
+    ensureNotificationPermission().then(setNotificationsGranted);
+
     initDatabase()
       .then(() => listAlertRules())
       .then((rules) => syncScheduledNotifications(rules))
       .catch((error) => console.error('SQLite init / notification sync failed:', error));
-
-    registerForPushNotificationsAsync().then(({ token, error }) => {
-      setPushToken(token);
-      setPushError(error);
-      if (token) {
-        registerDeviceWithBackend(token);
-      }
-    });
 
     notificationListener.current = Notifications.addNotificationReceivedListener(() => {});
 
@@ -42,7 +34,7 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Today" options={{ title: 'Aujourd’hui' }}>
-          {() => <TodayScreen pushToken={pushToken} pushError={pushError} />}
+          {() => <TodayScreen notificationsGranted={notificationsGranted} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

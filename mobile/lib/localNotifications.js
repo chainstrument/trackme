@@ -1,4 +1,32 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true
+  })
+});
+
+async function ensureNotificationPermission() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.DEFAULT
+    });
+  }
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  return finalStatus === 'granted';
+}
 
 function buildTrigger(rule) {
   if (rule.trigger_type === 'interval') {
@@ -50,4 +78,4 @@ async function syncScheduledNotifications(rules) {
   return scheduled;
 }
 
-export { cancelNotification, fireNow, scheduleNotificationForRule, syncScheduledNotifications };
+export { cancelNotification, ensureNotificationPermission, fireNow, scheduleNotificationForRule, syncScheduledNotifications };

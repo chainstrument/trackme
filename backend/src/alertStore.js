@@ -71,11 +71,14 @@ function checkScheduledAlerts(now = new Date()) {
   return triggered;
 }
 
-function startScheduler(intervalMs = 30000) {
+function startScheduler(intervalMs = 30000, onTriggered = () => {}) {
   if (schedulerInterval) {
     return schedulerInterval;
   }
-  schedulerInterval = setInterval(() => checkScheduledAlerts(), intervalMs);
+  schedulerInterval = setInterval(() => {
+    const triggered = checkScheduledAlerts();
+    onTriggered(triggered);
+  }, intervalMs);
   schedulerInterval.unref();
   return schedulerInterval;
 }

@@ -11,6 +11,7 @@ import {
 } from './mealStore.js';
 import { createActivity, listActivities } from './activityStore.js';
 import { listDevices, registerDevice } from './deviceStore.js';
+import { dispatchAlerts } from './pushDispatcher.js';
 import {
   createAlertRule,
   listAlertHistory,
@@ -207,6 +208,7 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/api/trigger-alerts' && req.method === 'POST') {
     const triggered = triggerAlerts();
+    dispatchAlerts(triggered).catch((error) => console.error('Push dispatch failed:', error));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(triggered));
     return;
@@ -223,7 +225,9 @@ function startServer(port = process.env.PORT || 3001) {
   server.listen(port, () => {
     console.log(`Backend listening on port ${port}`);
   });
-  startScheduler();
+  startScheduler(30000, (triggered) => {
+    dispatchAlerts(triggered).catch((error) => console.error('Push dispatch failed:', error));
+  });
   return server;
 }
 

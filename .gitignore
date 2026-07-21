@@ -6,3 +6,15 @@ coverage/
 .vscode/
 .idea/
 *.log
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+/mobile/ios
+/mobile/android
